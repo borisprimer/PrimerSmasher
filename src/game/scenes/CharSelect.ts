@@ -27,12 +27,12 @@ export class CharSelect extends Scene
             fontFamily: 'Arial', fontSize: 20, color: '#bbbbbb'
         }).setOrigin(0.5);
 
-        const cols = 6;
-        const tileW = 110, tileH = 130;
-        const gapX = 16, gapY = 10;
+        const cols = 7;
+        const tileW = 100, tileH = 115;
+        const gapX = 14, gapY = 10;
         const gridW = cols * tileW + (cols - 1) * gapX;
         const startX = (1024 - gridW) / 2 + tileW / 2;
-        const startY = 150;
+        const startY = 140;
 
         this.highlight = this.add.rectangle(0, 0, tileW + 10, tileH + 10)
             .setStrokeStyle(4, 0xffff00).setVisible(false);
@@ -44,15 +44,10 @@ export class CharSelect extends Scene
             const y = startY + row * (tileH + gapY);
             this.tilePositions[f.id] = { x, y };
 
-            const photo = this.add.image(x, y - 12, 'fighter:' + f.id).setDisplaySize(80, 80);
-            const m = this.add.graphics();
-            m.setVisible(false);
-            m.fillStyle(0xffffff, 1);
-            m.fillCircle(x, y - 12, 40);
-            photo.setMask(m.createGeometryMask());
+            this.add.image(x, y - 14, 'fighter:' + f.id).setDisplaySize(70, 70);
 
-            this.add.text(x, y + 42, f.name + ' ' + f.flag, {
-                fontFamily: 'Arial', fontSize: 13, color: '#ffffff'
+            this.add.text(x, y + 36, f.name + ' ' + f.flag, {
+                fontFamily: 'Arial', fontSize: 12, color: '#ffffff'
             }).setOrigin(0.5);
 
             const hit = this.add.rectangle(x, y, tileW, tileH, 0xffffff, 0)
