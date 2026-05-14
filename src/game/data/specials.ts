@@ -6,7 +6,7 @@ export type SpecialId =
   | 'langos-launch' | 'pasta-punch' | 'doner-spin' | 'mititei-missile'
   | 'rooibos-rush' | 'pyramid-trap' | 'vuvuzela-blast' | 'fish-chips-fury'
   | 'cossack-kick' | 'tokaji-twister'
-  | 'baguette-lance' | 'pizza-discus';
+  | 'baguette-lance' | 'fondue-fountain';
 
 export type SpecialShape = 'projectile' | 'aoe' | 'dash';
 
@@ -48,5 +48,5 @@ export const SPECIALS: Record<SpecialId, Special> = {
   'cossack-kick':      { id: 'cossack-kick',      name: 'Cossack Kick',         emoji: '🕺', color: 0x3366ff, shape: 'dash',       damage: 38, durationMs: 480 },
   'tokaji-twister':    { id: 'tokaji-twister',    name: 'Tokaji Twister',       emoji: '🍷', color: 0xaa2244, shape: 'aoe',        damage: 36, durationMs: 700 },
   'baguette-lance':    { id: 'baguette-lance',    name: 'Baguette Lance',       emoji: '🥖', color: 0xeeaa44, shape: 'projectile', damage: 42, durationMs: 600 },
-  'pizza-discus':      { id: 'pizza-discus',      name: 'Pizza Discus',         emoji: '🍕', color: 0xff5533, shape: 'projectile', damage: 50, durationMs: 550 },
+  'fondue-fountain':   { id: 'fondue-fountain',   name: 'Fondue Fountain',      emoji: '🫕', color: 0xeecc44, shape: 'aoe',        damage: 50, durationMs: 750 },
 };

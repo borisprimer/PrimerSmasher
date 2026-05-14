@@ -93,12 +93,12 @@ export class Result extends Scene
         this.tweens.add({ targets: photoBg, scale: 1.12, duration: 700, yoyo: true, repeat: -1 });
         this.add.image(512, 380, 'fighter:Gab').setDisplaySize(300, 300);
 
-        this.add.text(512, 580, 'GAB IS COMING 🇮🇹', {
+        this.add.text(512, 580, 'GAB IS COMING 🇨🇭', {
             fontFamily: 'Arial Black', fontSize: 56, color: '#ffff00',
             stroke: '#000000', strokeThickness: 8
         }).setOrigin(0.5);
 
-        this.add.text(512, 640, 'Pizza Discus 🍕 — 50 damage', {
+        this.add.text(512, 640, 'Fondue Fountain 🫕 — 50 damage', {
             fontFamily: 'Arial', fontSize: 22, color: '#ffaaaa'
         }).setOrigin(0.5);
 

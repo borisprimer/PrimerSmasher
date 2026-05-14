@@ -38,7 +38,7 @@ export const ROSTER: Fighter[] = [
   { id: 'Yuriy',     name: 'Yuriy',     photo: 'acceptance-team/Yuriy.jpg',     nationality: 'Ukraine',          flag: '🇺🇦', special: 'cossack-kick',      tier: 'easy' },
   { id: 'Zsofia',    name: 'Zsófia',    photo: 'acceptance-team/Zsofia.png',    nationality: 'Hungary',          flag: '🇭🇺', special: 'tokaji-twister',    tier: 'easy' },
   { id: 'PE',        name: 'PE',        photo: 'acceptance-team/PE.jpg',        nationality: 'France',           flag: '🇫🇷', special: 'baguette-lance',    tier: 'medium' },
-  { id: 'Gab',       name: 'Gab',       photo: 'acceptance-team/Gab.png',       nationality: 'Italy',            flag: '🇮🇹', special: 'pizza-discus',      tier: 'hard' },
+  { id: 'Gab',       name: 'Gab',       photo: 'acceptance-team/Gab.png',       nationality: 'Switzerland',      flag: '🇨🇭', special: 'fondue-fountain',   tier: 'hard' },
 ];
 
 export const PLAYABLE: Fighter[] = ROSTER.filter(f => f.tier === 'easy');
