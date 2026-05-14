@@ -42,6 +42,9 @@ export class Fight extends Scene
     private speechCooldownUntil = 0;
     private speechStarted = false;
 
+    // SFX (synthesised, no asset files)
+    private sfxCtx: AudioContext | null = null;
+
     constructor ()
     {
         super('Fight');
@@ -294,20 +297,79 @@ export class Fight extends Scene
 
         if (/\b(jump|up)\b/.test(text)) {
             this.player.jump();
+            this.sfxJump();
             this.speechCooldownUntil = now + 350;
         } else if (/\b(punch|hit|jab)\b/.test(text)) {
             const hb = this.player.punch();
             if (hb) this.spawnHitbox(hb, this.player, this.enemy);
+            this.sfxPunch();
             this.speechCooldownUntil = now + 350;
         } else if (/\b(kick|boot)\b/.test(text)) {
             const hb = this.player.kick();
             if (hb) this.spawnHitbox(hb, this.player, this.enemy);
+            this.sfxKick();
             this.speechCooldownUntil = now + 350;
         } else if (/\b(special|super|finish)\b/.test(text)) {
-            if (this.player.startSpecial()) playSpecial(this, this.player, this.enemy);
+            if (this.player.startSpecial()) {
+                playSpecial(this, this.player, this.enemy);
+                this.sfxSpecial();
+            }
             this.speechCooldownUntil = now + 600;
         }
     }
+
+    // ───── Procedural SFX (Web Audio, no asset files) ─────
+
+    private ensureSfxCtx (): AudioContext {
+        if (!this.sfxCtx) this.sfxCtx = new AudioContext();
+        if (this.sfxCtx.state === 'suspended') this.sfxCtx.resume();
+        return this.sfxCtx;
+    }
+
+    private playTone (type: OscillatorType, freqStart: number, freqEnd: number, duration: number, volume = 0.25) {
+        const ctx = this.ensureSfxCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freqStart, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 0.01), ctx.currentTime + duration);
+        gain.gain.setValueAtTime(volume, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+    }
+
+    private playNoise (duration: number, volume = 0.3, lowpass = 1200) {
+        const ctx = this.ensureSfxCtx();
+        const bufferSize = ctx.sampleRate * duration;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = lowpass;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(volume, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        noise.connect(filter).connect(gain).connect(ctx.destination);
+        noise.start();
+        noise.stop(ctx.currentTime + duration);
+    }
+
+    private sfxPunch () { this.playTone('square', 220, 60, 0.12, 0.22); this.playNoise(0.08, 0.18, 900); }
+    private sfxKick ()  { this.playTone('sawtooth', 160, 40, 0.18, 0.28); this.playNoise(0.12, 0.22, 600); }
+    private sfxJump ()  { this.playTone('square', 320, 720, 0.16, 0.18); }
+    private sfxHit ()   { this.playNoise(0.12, 0.35, 1800); this.playTone('triangle', 500, 120, 0.14, 0.18); }
+    private sfxSpecial () {
+        this.playTone('sawtooth', 200, 800, 0.18, 0.22);
+        setTimeout(() => this.playTone('square', 600, 1200, 0.22, 0.2), 120);
+        setTimeout(() => this.playNoise(0.3, 0.2, 2400), 200);
+    }
+    private sfxWin ()  { this.playTone('triangle', 440, 880, 0.15, 0.22); setTimeout(() => this.playTone('triangle', 660, 1320, 0.25, 0.22), 140); }
+    private sfxLose () { this.playTone('sawtooth', 320, 60, 0.6, 0.24); }
 
     private showCountdown ()
     {
@@ -371,7 +433,7 @@ export class Fight extends Scene
             else if (this.keys.D.isDown) this.player.moveRight();
             else this.player.stopMove();
 
-            if (Input.Keyboard.JustDown(this.keys.W)) this.player.jump();
+            if (Input.Keyboard.JustDown(this.keys.W)) { this.player.jump(); this.sfxJump(); }
         }
 
         if (!this.resolved && this.enemy.isAlive()) {
@@ -391,6 +453,7 @@ export class Fight extends Scene
             const loserId = this.player.isAlive() ? this.enemy.data.id : this.player.data.id;
             const playerWon = winnerId === this.playerId;
 
+            if (playerWon) this.sfxWin(); else this.sfxLose();
             this.add.text(512, 360, playerWon ? 'K.O.' : 'YOU LOST', {
                 fontFamily: 'Arial Black', fontSize: 80,
                 color: playerWon ? '#ffff00' : '#ff3333',
@@ -418,6 +481,7 @@ export class Fight extends Scene
             if (defender.isAlive() && dx < (hb.w / 2 + 40) && dy < (hb.h / 2 + 80)) {
                 defender.takeHit(hb.damage);
                 attacker.addMeter(20);
+                this.sfxHit();
                 landed = true;
                 rect.destroy();
             }
