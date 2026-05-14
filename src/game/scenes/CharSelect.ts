@@ -68,6 +68,7 @@ export class CharSelect extends Scene
             if (!this.selectedId) return;
             const others = PLAYABLE.filter(f => f.id !== this.selectedId);
             const opp = others[Math.floor(Math.random() * others.length)];
+            this.registry.set('tournamentStartAt', this.time.now);
             this.scene.start('Fight', { playerId: this.selectedId, opponentId: opp.id, fightIndex: 1 });
         });
 

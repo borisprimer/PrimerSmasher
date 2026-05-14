@@ -11,7 +11,15 @@ type FightKeys = {
     A: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
     W: Phaser.Input.Keyboard.Key;
+    S: Phaser.Input.Keyboard.Key;
+    F: Phaser.Input.Keyboard.Key;
+    G: Phaser.Input.Keyboard.Key;
+    SPACE: Phaser.Input.Keyboard.Key;
 };
+
+const ROUND_MS = 60_000;
+const HP_BAR_W = 400;
+const METER_BAR_W = 300;
 
 export class Fight extends Scene
 {
@@ -25,10 +33,12 @@ export class Fight extends Scene
     private enemyHpBar!: Phaser.GameObjects.Rectangle;
     private playerMeterBar!: Phaser.GameObjects.Rectangle;
     private enemyMeterBar!: Phaser.GameObjects.Rectangle;
+    private timerText!: Phaser.GameObjects.Text;
 
     private keys!: FightKeys;
     private resolved = false;
     private started = false;
+    private roundStartAt = 0;
 
     // Mic + speech demo
     private micAnalyser: AnalyserNode | null = null;
@@ -57,6 +67,7 @@ export class Fight extends Scene
         this.fightIndex = data.fightIndex;
         this.resolved = false;
         this.started = false;
+        this.roundStartAt = 0;
     }
 
     create ()
@@ -106,33 +117,35 @@ export class Fight extends Scene
             fontFamily: 'Arial Black', fontSize: 18, color: '#ffffff'
         }).setOrigin(1, 0);
 
-        this.add.rectangle(220, 115, 400, 22, 0x441111).setStrokeStyle(2, 0xffffff);
-        this.playerHpBar = this.add.rectangle(20, 104, 400, 22, 0xff3333).setOrigin(0, 0);
+        this.add.rectangle(220, 115, HP_BAR_W, 22, 0x441111).setStrokeStyle(2, 0xffffff);
+        this.playerHpBar = this.add.rectangle(20, 104, HP_BAR_W, 22, 0xff3333).setOrigin(0, 0);
 
-        this.add.rectangle(804, 115, 400, 22, 0x441111).setStrokeStyle(2, 0xffffff);
-        this.enemyHpBar = this.add.rectangle(1004, 104, 400, 22, 0xff3333).setOrigin(1, 0);
+        this.add.rectangle(804, 115, HP_BAR_W, 22, 0x441111).setStrokeStyle(2, 0xffffff);
+        this.enemyHpBar = this.add.rectangle(1004, 104, HP_BAR_W, 22, 0xff3333).setOrigin(1, 0);
 
-        this.add.rectangle(170, 142, 300, 10, 0x222200).setStrokeStyle(1, 0xffff00);
+        this.add.rectangle(170, 142, METER_BAR_W, 10, 0x222200).setStrokeStyle(1, 0xffff00);
         this.playerMeterBar = this.add.rectangle(20, 137, 0, 10, 0xffff00).setOrigin(0, 0);
 
-        this.add.rectangle(854, 142, 300, 10, 0x222200).setStrokeStyle(1, 0xffff00);
+        this.add.rectangle(854, 142, METER_BAR_W, 10, 0x222200).setStrokeStyle(1, 0xffff00);
         this.enemyMeterBar = this.add.rectangle(1004, 137, 0, 10, 0xffff00).setOrigin(1, 0);
 
-        this.add.text(512, 102, `FIGHT ${this.fightIndex} / 3`, {
-            fontFamily: 'Arial Black', fontSize: 22, color: '#ffffff',
-            stroke: '#000', strokeThickness: 4
+        this.drawBracket();
+
+        this.timerText = this.add.text(512, 100, '60', {
+            fontFamily: 'Arial Black', fontSize: 42, color: '#ffffff',
+            stroke: '#000', strokeThickness: 6
         }).setOrigin(0.5);
 
-        this.add.text(20, 158, SPECIALS[pData.special].name + ' (say "SPECIAL")', {
+        this.add.text(20, 158, SPECIALS[pData.special].name + ' (SPACE or say "SPECIAL")', {
             fontFamily: 'Arial', fontSize: 12, color: '#ffff88'
         });
         this.add.text(1004, 158, SPECIALS[eData.special].name, {
             fontFamily: 'Arial', fontSize: 12, color: '#ffff88'
         }).setOrigin(1, 0);
 
-        this.keys = this.input.keyboard!.addKeys('A,D,W') as FightKeys;
+        this.keys = this.input.keyboard!.addKeys('A,D,W,S,F,G,SPACE') as FightKeys;
 
-        this.add.text(512, 750, 'A/D move • W jump • everything else by VOICE', {
+        this.add.text(512, 750, 'A/D move • W jump • S block • F/G punch+kick • SPACE special — or use VOICE', {
             fontFamily: 'Arial', fontSize: 13, color: '#888888'
         }).setOrigin(0.5);
 
@@ -190,6 +203,27 @@ export class Fight extends Scene
         });
 
         this.showCountdown();
+    }
+
+    private drawBracket (): void
+    {
+        const labels = ['R1', 'PE', 'GAB'];
+        labels.forEach((label, i) => {
+            const cx = 412 + i * 100;
+            const cy = 22;
+            const isPast = (i + 1) < this.fightIndex;
+            const isCurrent = (i + 1) === this.fightIndex;
+            const fill = isPast || isCurrent ? 0xffff00 : 0x222244;
+            const stroke = isCurrent ? 0xffffff : 0x555577;
+            this.add.circle(cx, cy, 14, fill).setStrokeStyle(2, stroke);
+            this.add.text(cx, cy, label, {
+                fontFamily: 'Arial Black', fontSize: 11,
+                color: isPast || isCurrent ? '#000000' : '#ffffff'
+            }).setOrigin(0.5);
+            if (i < labels.length - 1) {
+                this.add.rectangle(cx + 50, cy, 70, 2, isPast ? 0xffff00 : 0x444466);
+            }
+        });
     }
 
     private async startMic ()
@@ -291,7 +325,7 @@ export class Fight extends Scene
 
     private handleSpeech (text: string)
     {
-        if (this.resolved || !this.player?.isAlive()) return;
+        if (this.resolved || !this.player?.isAlive() || !this.started) return;
         const now = this.time.now;
         if (now < this.speechCooldownUntil) return;
 
@@ -312,6 +346,7 @@ export class Fight extends Scene
         } else if (/\b(special|super|finish)\b/.test(text)) {
             if (this.player.startSpecial()) {
                 playSpecial(this, this.player, this.enemy);
+                this.player.incrementCombo();
                 this.sfxSpecial();
             }
             this.speechCooldownUntil = now + 600;
@@ -373,6 +408,38 @@ export class Fight extends Scene
 
     private showCountdown ()
     {
+        this.showSplash(() => this.showThreeTwoOne());
+    }
+
+    private showSplash (then: () => void)
+    {
+        const round = this.fightIndex === 1
+            ? 'ROUND 1'
+            : this.fightIndex === 2 ? 'SEMI-FINAL' : 'FINAL';
+        const opp = BY_ID[this.opponentId];
+
+        const r = this.add.text(512, 360, round, {
+            fontFamily: 'Arial Black', fontSize: 64,
+            color: this.fightIndex === 3 ? '#ff3333' : '#ffff00',
+            stroke: '#000000', strokeThickness: 10
+        }).setOrigin(0.5).setAlpha(0).setDepth(100);
+
+        const vs = this.add.text(512, 440, 'VS  ' + opp.name + '  ' + opp.flag, {
+            fontFamily: 'Arial Black', fontSize: 50, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 8
+        }).setOrigin(0.5).setAlpha(0).setDepth(100);
+
+        this.tweens.add({ targets: [r, vs], alpha: 1, duration: 240, ease: 'Cubic.easeOut' });
+        this.time.delayedCall(1150, () => {
+            this.tweens.add({
+                targets: [r, vs], alpha: 0, duration: 260,
+                onComplete: () => { r.destroy(); vs.destroy(); then(); }
+            });
+        });
+    }
+
+    private showThreeTwoOne ()
+    {
         const steps: { label: string; color: string; big: boolean }[] = [
             { label: '3',      color: '#ffffff', big: false },
             { label: '2',      color: '#ffffff', big: false },
@@ -383,10 +450,11 @@ export class Fight extends Scene
         const next = () => {
             if (i >= steps.length) {
                 this.started = true;
+                this.roundStartAt = this.time.now;
                 return;
             }
             const step = steps[i];
-            const text = this.add.text(512, 360, step.label, {
+            const text = this.add.text(512, 440, step.label, {
                 fontFamily: 'Arial Black', fontSize: step.big ? 140 : 130,
                 color: step.color, stroke: '#000000', strokeThickness: 10
             }).setOrigin(0.5).setScale(0.3).setAlpha(0).setDepth(100);
@@ -417,57 +485,148 @@ export class Fight extends Scene
             this.enemy.facing = 1;
         }
 
-        this.playerHpBar.width = (this.player.health / 100) * 400;
-        this.enemyHpBar.width = (this.enemy.health / 100) * 400;
-        this.playerMeterBar.width = (this.player.meter / 100) * 300;
-        this.enemyMeterBar.width = (this.enemy.meter / 100) * 300;
+        this.updateHud(t);
 
         if (!this.started) {
             this.player.update();
             this.enemy.update();
+            this.tickMic(t);
             return;
         }
 
-        if (!this.resolved && this.player.isAlive()) {
+        if (!this.resolved) {
+            const remaining = ROUND_MS - (t - this.roundStartAt);
+            if (remaining <= 0) {
+                this.resolveTimeUp();
+            }
+        }
+
+        this.player.blocking = !this.resolved
+            && this.keys.S.isDown
+            && this.player.isAlive();
+
+        if (!this.resolved && this.player.isAlive() && !this.player.blocking) {
             if (this.keys.A.isDown) this.player.moveLeft();
             else if (this.keys.D.isDown) this.player.moveRight();
             else this.player.stopMove();
 
             if (Input.Keyboard.JustDown(this.keys.W)) { this.player.jump(); this.sfxJump(); }
+
+            if (Input.Keyboard.JustDown(this.keys.F)) {
+                const hb = this.player.punch();
+                if (hb) { this.spawnHitbox(hb, this.player, this.enemy); this.sfxPunch(); }
+            }
+            if (Input.Keyboard.JustDown(this.keys.G)) {
+                const hb = this.player.kick();
+                if (hb) { this.spawnHitbox(hb, this.player, this.enemy); this.sfxKick(); }
+            }
+            if (Input.Keyboard.JustDown(this.keys.SPACE)) {
+                if (this.player.startSpecial()) {
+                    playSpecial(this, this.player, this.enemy);
+                    this.player.incrementCombo();
+                    this.sfxSpecial();
+                }
+            }
+        } else if (this.player.blocking) {
+            this.player.stopMove();
         }
 
         if (!this.resolved && this.enemy.isAlive()) {
             const ai = tickAI(this.enemy, this.player, t);
             if (ai.hitbox) this.spawnHitbox(ai.hitbox, this.enemy, this.player);
-            if (ai.specialTriggered) playSpecial(this, this.enemy, this.player);
+            if (ai.specialTriggered) {
+                playSpecial(this, this.enemy, this.player);
+                this.enemy.incrementCombo();
+            }
         }
 
         this.player.update();
         this.enemy.update();
-
         this.tickMic(t);
 
         if (!this.resolved && (!this.player.isAlive() || !this.enemy.isAlive())) {
-            this.resolved = true;
-            const winnerId = this.player.isAlive() ? this.player.data.id : this.enemy.data.id;
-            const loserId = this.player.isAlive() ? this.enemy.data.id : this.player.data.id;
-            const playerWon = winnerId === this.playerId;
-
-            if (playerWon) this.sfxWin(); else this.sfxLose();
-            this.add.text(512, 360, playerWon ? 'K.O.' : 'YOU LOST', {
-                fontFamily: 'Arial Black', fontSize: 80,
-                color: playerWon ? '#ffff00' : '#ff3333',
-                stroke: '#000', strokeThickness: 8
-            }).setOrigin(0.5);
-
-            this.time.delayedCall(1700, () => {
-                this.scene.start('Result', {
-                    winnerId, loserId,
-                    fightIndex: this.fightIndex,
-                    playerId: this.playerId
-                });
-            });
+            this.resolveKo();
         }
+    }
+
+    private updateHud (t: number): void
+    {
+        const playerHpTarget = (this.player.health / 100) * HP_BAR_W;
+        const enemyHpTarget = (this.enemy.health / 100) * HP_BAR_W;
+        this.playerHpBar.width += (playerHpTarget - this.playerHpBar.width) * 0.18;
+        this.enemyHpBar.width += (enemyHpTarget - this.enemyHpBar.width) * 0.18;
+
+        const lowP = this.player.health <= 25 && this.player.isAlive();
+        const lowE = this.enemy.health <= 25 && this.enemy.isAlive();
+        this.playerHpBar.alpha = lowP ? 0.55 + Math.sin(t * 0.014) * 0.4 : 1;
+        this.enemyHpBar.alpha = lowE ? 0.55 + Math.sin(t * 0.014) * 0.4 : 1;
+        this.playerHpBar.fillColor = lowP ? 0xff5555 : 0xff3333;
+        this.enemyHpBar.fillColor = lowE ? 0xff5555 : 0xff3333;
+
+        this.playerMeterBar.width = (this.player.meter / 100) * METER_BAR_W;
+        this.enemyMeterBar.width = (this.enemy.meter / 100) * METER_BAR_W;
+
+        if (this.started && !this.resolved) {
+            const remaining = Math.max(0, ROUND_MS - (t - this.roundStartAt));
+            const sec = Math.ceil(remaining / 1000);
+            this.timerText.setText(sec.toString());
+            this.timerText.setColor(sec <= 10 ? '#ff3333' : '#ffffff');
+        } else if (!this.started) {
+            this.timerText.setText('60');
+            this.timerText.setColor('#ffffff');
+        }
+    }
+
+    private resolveKo (): void
+    {
+        this.resolved = true;
+        const winnerId = this.player.isAlive() ? this.player.data.id : this.enemy.data.id;
+        const loserId = this.player.isAlive() ? this.enemy.data.id : this.player.data.id;
+        const playerWon = winnerId === this.playerId;
+
+        if (playerWon) this.sfxWin(); else this.sfxLose();
+
+        this.add.text(512, 360, playerWon ? 'K.O.' : 'YOU LOST', {
+            fontFamily: 'Arial Black', fontSize: 80,
+            color: playerWon ? '#ffff00' : '#ff3333',
+            stroke: '#000', strokeThickness: 8
+        }).setOrigin(0.5).setDepth(80);
+
+        this.time.delayedCall(1700, () => {
+            this.scene.start('Result', {
+                winnerId, loserId,
+                fightIndex: this.fightIndex,
+                playerId: this.playerId
+            });
+        });
+    }
+
+    private resolveTimeUp (): void
+    {
+        this.resolved = true;
+        const playerWon = this.player.health >= this.enemy.health;
+        const winnerId = playerWon ? this.playerId : this.enemy.data.id;
+        const loserId = playerWon ? this.enemy.data.id : this.playerId;
+
+        if (playerWon) this.sfxWin(); else this.sfxLose();
+
+        this.add.text(512, 320, 'TIME UP', {
+            fontFamily: 'Arial Black', fontSize: 70, color: '#ffaa22',
+            stroke: '#000', strokeThickness: 8
+        }).setOrigin(0.5).setDepth(80);
+        this.add.text(512, 400, playerWon ? 'You had more HP — you win!' : 'You had less HP — you lose!', {
+            fontFamily: 'Arial Black', fontSize: 24,
+            color: playerWon ? '#ffff00' : '#ff3333',
+            stroke: '#000', strokeThickness: 5
+        }).setOrigin(0.5).setDepth(80);
+
+        this.time.delayedCall(1700, () => {
+            this.scene.start('Result', {
+                winnerId, loserId,
+                fightIndex: this.fightIndex,
+                playerId: this.playerId
+            });
+        });
     }
 
     private spawnHitbox (hb: Hitbox, attacker: Fighter, defender: Fighter): void
@@ -481,6 +640,7 @@ export class Fight extends Scene
             if (defender.isAlive() && dx < (hb.w / 2 + 40) && dy < (hb.h / 2 + 80)) {
                 defender.takeHit(hb.damage);
                 attacker.addMeter(20);
+                attacker.incrementCombo();
                 this.sfxHit();
                 landed = true;
                 rect.destroy();

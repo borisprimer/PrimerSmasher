@@ -16,6 +16,7 @@ export class Fighter {
   head: Phaser.GameObjects.Image;
   maskShape: Phaser.GameObjects.Graphics;
   stickBody: Phaser.GameObjects.Graphics;
+  meterAura: Phaser.GameObjects.Graphics;
   nameText: Phaser.GameObjects.Text;
 
   health = 100;
@@ -25,6 +26,9 @@ export class Fighter {
   stateUntil = 0;
   hitFlashUntil = 0;
   walkTime = 0;
+  blocking = false;
+  comboCount = 0;
+  lastHitLandedAt = 0;
 
   constructor (scene: Scene, x: number, y: number, data: FighterData, facing: 1 | -1) {
     this.scene = scene;
@@ -41,6 +45,7 @@ export class Fighter {
     this.sprite.setMaxVelocity(220, 800);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setGravityY(900);
 
+    this.meterAura = scene.add.graphics();
     this.stickBody = scene.add.graphics();
 
     this.head = scene.add.image(x, y - 60, key);
@@ -69,6 +74,15 @@ export class Fighter {
       this.state = 'idle';
     }
     if (this.state === 'walk' && Math.abs(body.velocity.x) < 10) this.state = 'idle';
+
+    this.meterAura.clear();
+    if (this.meter >= 100 && this.state !== 'ko') {
+      const pulse = (Math.sin(t * 0.009) + 1) * 0.25 + 0.5;
+      this.meterAura.fillStyle(0xffff00, 0.18 * pulse);
+      this.meterAura.fillCircle(cx, cy, 90);
+      this.meterAura.lineStyle(3, 0xffee33, 0.85 * pulse);
+      this.meterAura.strokeCircle(cx, cy, 90);
+    }
 
     this.stickBody.setPosition(cx, cy);
     const rot = this.stickBody.rotation;
@@ -110,6 +124,13 @@ export class Fighter {
       this.stickBody.lineBetween(0, 40, 16 + swing, 80);
       this.stickBody.lineBetween(0, 40, -16 - swing, 80);
     }
+
+    if (this.blocking && this.state !== 'ko') {
+      this.stickBody.fillStyle(0x44aaff, 0.35);
+      this.stickBody.fillRect(this.facing * 22, -28, 14, 64);
+      this.stickBody.lineStyle(2, 0x66ccff, 0.95);
+      this.stickBody.strokeRect(this.facing * 22, -28, 14, 64);
+    }
   }
 
   private spawnDamageNumber (damage: number): void {
@@ -130,16 +151,49 @@ export class Fighter {
     });
   }
 
+  private spawnHitParticles (): void {
+    for (let i = 0; i < 9; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 30 + Math.random() * 55;
+      const dot = this.scene.add.circle(
+        this.sprite.x, this.sprite.y - 30,
+        3 + Math.random() * 3,
+        Math.random() < 0.5 ? 0xffcc44 : 0xffffff
+      ).setDepth(40);
+      this.scene.tweens.add({
+        targets: dot,
+        x: dot.x + Math.cos(angle) * dist,
+        y: dot.y + Math.sin(angle) * dist - 15,
+        alpha: 0,
+        scale: 0.4,
+        duration: 380 + Math.random() * 200,
+        onComplete: () => dot.destroy()
+      });
+    }
+  }
+
+  private applyHitstop (durMs: number): void {
+    const s = this.scene;
+    s.time.timeScale = 0.12;
+    s.tweens.timeScale = 0.12;
+    s.physics.world.timeScale = 8;
+    setTimeout(() => {
+      s.time.timeScale = 1;
+      s.tweens.timeScale = 1;
+      s.physics.world.timeScale = 1;
+    }, durMs);
+  }
+
   moveLeft (): void {
     if (this.state === 'ko' || this.state === 'punch' || this.state === 'kick' || this.state === 'special') return;
-    this.sprite.setVelocityX(-200);
+    this.sprite.setVelocityX(this.blocking ? -90 : -200);
     this.facing = -1;
     if (this.state === 'idle') this.state = 'walk';
   }
 
   moveRight (): void {
     if (this.state === 'ko' || this.state === 'punch' || this.state === 'kick' || this.state === 'special') return;
-    this.sprite.setVelocityX(200);
+    this.sprite.setVelocityX(this.blocking ? 90 : 200);
     this.facing = 1;
     if (this.state === 'idle') this.state = 'walk';
   }
@@ -151,12 +205,13 @@ export class Fighter {
   }
 
   jump (): void {
-    if (this.state === 'ko') return;
+    if (this.state === 'ko' || this.blocking) return;
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
     if (body.blocked.down || body.touching.down) this.sprite.setVelocityY(-520);
   }
 
   punch (): Hitbox | null {
+    if (this.blocking) return null;
     if (this.state !== 'idle' && this.state !== 'walk') return null;
     this.state = 'punch';
     this.stateUntil = this.scene.time.now + 220;
@@ -164,6 +219,7 @@ export class Fighter {
   }
 
   kick (): Hitbox | null {
+    if (this.blocking) return null;
     if (this.state !== 'idle' && this.state !== 'walk') return null;
     this.state = 'kick';
     this.stateUntil = this.scene.time.now + 300;
@@ -171,6 +227,7 @@ export class Fighter {
   }
 
   startSpecial (): boolean {
+    if (this.blocking) return false;
     if (this.meter < 100) return false;
     if (this.state !== 'idle' && this.state !== 'walk') return false;
     this.meter = 0;
@@ -181,9 +238,24 @@ export class Fighter {
 
   takeHit (damage: number): void {
     if (this.state === 'ko') return;
-    this.health = Math.max(0, this.health - damage);
+
+    let actual = damage * (0.8 + Math.random() * 0.4);
+    if (this.blocking) actual *= 0.35;
+    actual = Math.max(1, Math.round(actual));
+
+    this.health = Math.max(0, this.health - actual);
     this.hitFlashUntil = this.scene.time.now + 140;
-    this.spawnDamageNumber(damage);
+    this.spawnDamageNumber(actual);
+    this.spawnHitParticles();
+
+    if (actual >= 25) {
+      this.scene.cameras.main.shake(180, 0.0085);
+      this.applyHitstop(95);
+    } else if (actual >= 15) {
+      this.scene.cameras.main.shake(110, 0.0045);
+    } else {
+      this.scene.cameras.main.shake(60, 0.0025);
+    }
 
     if (this.health <= 0) {
       this.state = 'ko';
@@ -205,6 +277,33 @@ export class Fighter {
     this.meter = Math.min(100, this.meter + amount);
   }
 
+  incrementCombo (): void {
+    const now = this.scene.time.now;
+    if (now - this.lastHitLandedAt < 1500) {
+      this.comboCount++;
+    } else {
+      this.comboCount = 1;
+    }
+    this.lastHitLandedAt = now;
+    if (this.comboCount >= 2) this.showCombo();
+  }
+
+  private showCombo (): void {
+    const c = this.scene.add.text(this.sprite.x, this.sprite.y - 130, this.comboCount + ' HIT COMBO!', {
+      fontFamily: 'Arial Black', fontSize: 30, color: '#ff8822',
+      stroke: '#000000', strokeThickness: 5
+    }).setOrigin(0.5).setScale(0.3).setDepth(60);
+    this.scene.tweens.add({
+      targets: c, scale: 1.2, y: c.y - 28, duration: 220, ease: 'Back.easeOut',
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: c, alpha: 0, scale: 0.8, duration: 580, delay: 220,
+          onComplete: () => c.destroy()
+        });
+      }
+    });
+  }
+
   isAlive (): boolean {
     return this.state !== 'ko' && this.health > 0;
   }
@@ -214,6 +313,7 @@ export class Fighter {
     this.head.destroy();
     this.maskShape.destroy();
     this.stickBody.destroy();
+    this.meterAura.destroy();
     this.nameText.destroy();
   }
 }
