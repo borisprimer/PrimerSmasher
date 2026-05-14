@@ -1,6 +1,6 @@
 {
-  "name": "chrisolutions",
-  "description": "Chrisolutions hackathon kit — Phaser 4 + TypeScript + Vite, Claude-Code ready.",
+  "name": "primer-smasher",
+  "description": "Primer Smasher — Street Fighter–style hackathon brawler starring the Primer Acceptance team.",
   "version": "1.4.0",
   "repository": {
     "type": "git",

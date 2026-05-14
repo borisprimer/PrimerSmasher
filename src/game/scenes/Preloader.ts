@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { ROSTER } from '../data/roster';
 
 export class Preloader extends Scene
 {
@@ -9,11 +10,17 @@ export class Preloader extends Scene
 
     init ()
     {
-        this.add.image(512, 384, 'background');
+        this.add.text(512, 280, 'PRIMER SMASHER', {
+            fontFamily: 'Arial Black', fontSize: 56, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }).setOrigin(0.5);
 
-        this.add.rectangle(512, 384, 468, 32).setStrokeStyle(1, 0xffffff);
+        this.add.text(512, 350, 'Loading the Acceptance team…', {
+            fontFamily: 'Arial', fontSize: 22, color: '#cccccc'
+        }).setOrigin(0.5);
 
-        const bar = this.add.rectangle(512 - 230, 384, 4, 28, 0xffffff);
+        this.add.rectangle(512, 420, 468, 32).setStrokeStyle(2, 0xffffff);
+        const bar = this.add.rectangle(512 - 230, 420, 4, 28, 0xffff00);
 
         this.load.on('progress', (progress: number) => {
             bar.width = 4 + (460 * progress);
@@ -22,21 +29,13 @@ export class Preloader extends Scene
 
     preload ()
     {
-        this.load.image('chris', 'chris/normal-chris.png');
-        this.load.image('chris-super', 'chris/super-chris.png');
-        this.load.image('chris-french', 'chris/french-chris.png');
-        this.load.image('chris-after-hours', 'chris/after-hours-chris.png');
+        for (const f of ROSTER) {
+            this.load.image('fighter:' + f.id, f.photo);
+        }
     }
 
     create ()
     {
-        // Generate a small white circle texture for particle emitters.
-        const g = this.make.graphics({ x: 0, y: 0 }, false);
-        g.fillStyle(0xffffff, 1);
-        g.fillCircle(4, 4, 4);
-        g.generateTexture('sparkle', 8, 8);
-        g.destroy();
-
-        this.scene.start('MainMenu');
+        this.scene.start('CharSelect');
     }
 }
