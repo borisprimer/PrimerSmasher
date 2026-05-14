@@ -53,7 +53,6 @@ export class CharSelect extends Scene
             const hit = this.add.rectangle(x, y, tileW, tileH, 0xffffff, 0)
                 .setInteractive({ useHandCursor: true });
             hit.on('pointerdown', () => this.select(f.id));
-            hit.on('pointerover', () => this.select(f.id));
         });
 
         this.detailText = this.add.text(512, 660, '', {
