@@ -4,6 +4,8 @@ import type { Fighter } from './Fighter';
 
 const EMOJI_FONT = 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif';
 
+const SUPER_DAMAGE = 50;
+
 export function playSpecial (scene: Scene, attacker: Fighter, defender: Fighter): void {
   const s = SPECIALS[attacker.data.special];
   const ax = attacker.sprite.x;
@@ -53,7 +55,7 @@ function playProjectile (scene: Scene, attacker: Fighter, defender: Fighter, s: 
       if (defender.isAlive() &&
           Math.abs(proj.x - defender.sprite.x) < 55 &&
           Math.abs(proj.y - defender.sprite.y) < 95) {
-        defender.takeHit(s.damage);
+        defender.takeHit(SUPER_DAMAGE);
         landed = true;
         flashImpact(scene, defender.sprite.x, defender.sprite.y, s.color, s.emoji);
         proj.destroy();
@@ -105,7 +107,7 @@ function playDash (scene: Scene, attacker: Fighter, defender: Fighter, s: Specia
       aura.setPosition(attacker.sprite.x, attacker.sprite.y - 20);
       if (landed) return;
       if (defender.isAlive() && Math.abs(attacker.sprite.x - defender.sprite.x) < 90) {
-        defender.takeHit(s.damage);
+        defender.takeHit(SUPER_DAMAGE);
         landed = true;
         flashImpact(scene, defender.sprite.x, defender.sprite.y, s.color, s.emoji);
       }

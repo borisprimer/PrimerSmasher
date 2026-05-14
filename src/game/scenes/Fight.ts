@@ -237,7 +237,7 @@ export class Fight extends Scene
 
     private spawnHitbox (hb: Hitbox, attacker: Fighter, defender: Fighter): void
     {
-        const rect = this.add.rectangle(hb.x, hb.y, hb.w, hb.h, 0xffff00, 0.18);
+        const rect = this.add.rectangle(hb.x, hb.y, hb.w, hb.h, 0xffff00, 0.18).setVisible(false);
         let landed = false;
         const tick = () => {
             if (landed) return;
