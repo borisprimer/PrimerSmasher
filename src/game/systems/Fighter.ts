@@ -63,12 +63,6 @@ export class Fighter {
     const cx = s.x, cy = s.y;
     const body = s.body as Phaser.Physics.Arcade.Body;
 
-    this.head.setPosition(cx, cy - 60);
-    this.maskShape.clear();
-    this.maskShape.fillStyle(0xffffff, 1);
-    this.maskShape.fillCircle(cx, cy - 60, 40);
-    this.nameText.setPosition(cx, cy - 115);
-
     if (Math.abs(body.velocity.x) > 10 && this.state !== 'ko') this.walkTime += 16;
 
     if ((this.state === 'punch' || this.state === 'kick' || this.state === 'special' || this.state === 'hit') && t > this.stateUntil) {
@@ -76,36 +70,64 @@ export class Fighter {
     }
     if (this.state === 'walk' && Math.abs(body.velocity.x) < 10) this.state = 'idle';
 
+    this.stickBody.setPosition(cx, cy);
+    const rot = this.stickBody.rotation;
+    const headX = cx + 60 * Math.sin(rot);
+    const headY = cy - 60 * Math.cos(rot);
+
+    this.head.setPosition(headX, headY);
+    this.head.setRotation(rot);
+
+    this.maskShape.clear();
+    this.maskShape.fillStyle(0xffffff, 1);
+    this.maskShape.fillCircle(headX, headY, 40);
+
+    this.nameText.setPosition(headX, headY - 55);
+    this.nameText.setRotation(rot);
+
     this.stickBody.clear();
-
-    if (this.state === 'ko') {
-      this.stickBody.lineStyle(5, 0xff6666);
-      this.stickBody.lineBetween(cx - 50, cy + 70, cx + 50, cy + 70);
-      return;
-    }
-
-    const color = t < this.hitFlashUntil ? 0xffff00 : 0xffffff;
+    const color = t < this.hitFlashUntil
+      ? 0xffff00
+      : this.state === 'ko' ? 0xff8888 : 0xffffff;
     this.stickBody.lineStyle(4, color);
 
-    this.stickBody.lineBetween(cx, cy - 20, cx, cy + 40);
+    this.stickBody.lineBetween(0, -20, 0, 40);
 
     if (this.state === 'punch' || this.state === 'special') {
-      this.stickBody.lineBetween(cx, cy - 20, cx + this.facing * 65, cy - 5);
-      this.stickBody.lineBetween(cx, cy - 20, cx - this.facing * 25, cy + 5);
+      this.stickBody.lineBetween(0, -20, this.facing * 65, -5);
+      this.stickBody.lineBetween(0, -20, -this.facing * 25, 5);
     } else {
-      const swing = Math.sin(this.walkTime * 0.025) * 15;
-      this.stickBody.lineBetween(cx, cy - 20, cx + 22 + swing, cy + 15);
-      this.stickBody.lineBetween(cx, cy - 20, cx - 22 - swing, cy + 15);
+      const swing = this.state === 'walk' ? Math.sin(this.walkTime * 0.025) * 15 : 0;
+      this.stickBody.lineBetween(0, -20, 22 + swing, 15);
+      this.stickBody.lineBetween(0, -20, -22 - swing, 15);
     }
 
     if (this.state === 'kick') {
-      this.stickBody.lineBetween(cx, cy + 40, cx + this.facing * 65, cy + 45);
-      this.stickBody.lineBetween(cx, cy + 40, cx - this.facing * 15, cy + 80);
+      this.stickBody.lineBetween(0, 40, this.facing * 65, 45);
+      this.stickBody.lineBetween(0, 40, -this.facing * 15, 80);
     } else {
-      const swing = Math.sin(this.walkTime * 0.025) * 15;
-      this.stickBody.lineBetween(cx, cy + 40, cx + 16 + swing, cy + 80);
-      this.stickBody.lineBetween(cx, cy + 40, cx - 16 - swing, cy + 80);
+      const swing = this.state === 'walk' ? Math.sin(this.walkTime * 0.025) * 15 : 0;
+      this.stickBody.lineBetween(0, 40, 16 + swing, 80);
+      this.stickBody.lineBetween(0, 40, -16 - swing, 80);
     }
+  }
+
+  private spawnDamageNumber (damage: number): void {
+    const big = damage >= 25;
+    const dmg = this.scene.add.text(this.sprite.x, this.sprite.y - 80, '-' + damage, {
+      fontFamily: 'Arial Black', fontSize: big ? 44 : 32,
+      color: big ? '#ff2222' : '#ffaa44',
+      stroke: '#000000', strokeThickness: 5
+    }).setOrigin(0.5).setDepth(50);
+    this.scene.tweens.add({
+      targets: dmg,
+      y: dmg.y - 80,
+      alpha: 0,
+      scale: big ? 1.4 : 1.1,
+      duration: 900,
+      ease: 'Cubic.easeOut',
+      onComplete: () => dmg.destroy()
+    });
   }
 
   moveLeft (): void {
@@ -161,11 +183,21 @@ export class Fighter {
     if (this.state === 'ko') return;
     this.health = Math.max(0, this.health - damage);
     this.hitFlashUntil = this.scene.time.now + 140;
-    this.state = 'hit';
-    this.stateUntil = this.scene.time.now + 150;
+    this.spawnDamageNumber(damage);
+
     if (this.health <= 0) {
       this.state = 'ko';
-      this.sprite.setVelocityX(0);
+      this.sprite.setVelocityX(-this.facing * 260);
+      this.sprite.setVelocityY(-380);
+      this.scene.tweens.add({
+        targets: this.stickBody,
+        rotation: this.facing > 0 ? -Math.PI / 2 : Math.PI / 2,
+        duration: 650,
+        ease: 'Cubic.easeIn'
+      });
+    } else {
+      this.state = 'hit';
+      this.stateUntil = this.scene.time.now + 150;
     }
   }
 

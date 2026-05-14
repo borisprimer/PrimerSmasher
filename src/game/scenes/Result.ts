@@ -27,6 +27,11 @@ export class Result extends Scene
         const { winnerId, loserId, fightIndex, playerId } = this.payload;
         const playerWon = winnerId === playerId;
 
+        if (playerWon && fightIndex === 2) {
+            this.showBossIntro(playerId);
+            return;
+        }
+
         let title: string;
         let subtitle: string;
         let action: () => void;
@@ -48,14 +53,6 @@ export class Result extends Scene
                 playerId,
                 opponentId: 'PE',
                 fightIndex: 2
-            });
-        } else if (fightIndex === 2) {
-            title = 'You beat PE!';
-            subtitle = `Final boss: Gab 🇮🇹\nPress SPACE to face the CEO`;
-            action = () => this.scene.start('Fight', {
-                playerId,
-                opponentId: 'Gab',
-                fightIndex: 3
             });
         } else {
             title = 'CHAMPION!';
@@ -79,5 +76,40 @@ export class Result extends Scene
 
         this.input.keyboard!.once('keydown-SPACE', action);
         this.input.once('pointerdown', action);
+    }
+
+    private showBossIntro (playerId: string): void
+    {
+        const overlay = this.add.rectangle(512, 384, 1024, 768, 0x440000, 0.3);
+        this.tweens.add({ targets: overlay, alpha: 0.45, duration: 700, yoyo: true, repeat: -1 });
+
+        const final = this.add.text(512, 110, 'FINAL BOSS', {
+            fontFamily: 'Arial Black', fontSize: 76, color: '#ff2222',
+            stroke: '#000000', strokeThickness: 10
+        }).setOrigin(0.5);
+        this.tweens.add({ targets: final, alpha: 0.35, duration: 480, yoyo: true, repeat: -1 });
+
+        const photoBg = this.add.circle(512, 380, 165, 0xff2222, 0.4);
+        this.tweens.add({ targets: photoBg, scale: 1.12, duration: 700, yoyo: true, repeat: -1 });
+        this.add.image(512, 380, 'fighter:Gab').setDisplaySize(300, 300);
+
+        this.add.text(512, 580, 'GAB IS COMING 🇮🇹', {
+            fontFamily: 'Arial Black', fontSize: 56, color: '#ffff00',
+            stroke: '#000000', strokeThickness: 8
+        }).setOrigin(0.5);
+
+        this.add.text(512, 640, 'Pizza Discus 🍕 — 50 damage', {
+            fontFamily: 'Arial', fontSize: 22, color: '#ffaaaa'
+        }).setOrigin(0.5);
+
+        const prompt = this.add.text(512, 720, '[ PRESS SPACE TO FACE THE CEO ]', {
+            fontFamily: 'Arial Black', fontSize: 22, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5);
+        this.tweens.add({ targets: prompt, alpha: 0.4, duration: 600, yoyo: true, repeat: -1 });
+
+        const go = () => this.scene.start('Fight', { playerId, opponentId: 'Gab', fightIndex: 3 });
+        this.input.keyboard!.once('keydown-SPACE', go);
+        this.input.once('pointerdown', go);
     }
 }

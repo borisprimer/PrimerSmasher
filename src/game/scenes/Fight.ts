@@ -31,6 +31,7 @@ export class Fight extends Scene
 
     private keys!: FightKeys;
     private resolved = false;
+    private started = false;
 
     constructor ()
     {
@@ -43,6 +44,7 @@ export class Fight extends Scene
         this.opponentId = data.opponentId;
         this.fightIndex = data.fightIndex;
         this.resolved = false;
+        this.started = false;
     }
 
     create ()
@@ -53,12 +55,32 @@ export class Fight extends Scene
         bg.fillGradientStyle(0x1a0d2e, 0x1a0d2e, 0x3a1d5e, 0x3a1d5e, 1);
         bg.fillRect(0, 0, 1024, 768);
 
-        this.add.text(512, 40, 'PRIMER OFFICE', {
-            fontFamily: 'Arial Black', fontSize: 28, color: '#553399'
+        this.add.text(512, 410, 'PRIMER', {
+            fontFamily: 'Arial Black', fontSize: 220, color: '#1f0d3c'
         }).setOrigin(0.5);
 
+        for (let i = 0; i < 5; i++) {
+            const wx = 112 + i * 200;
+            const wy = 240;
+            this.add.rectangle(wx, wy, 120, 90, 0x0d0820).setStrokeStyle(4, 0x4a3d7e);
+            this.add.rectangle(wx, wy, 112, 84, 0x6644aa, 0.4);
+            this.add.rectangle(wx, wy, 3, 84, 0x4a3d7e);
+            this.add.rectangle(wx, wy, 112, 3, 0x4a3d7e);
+            this.add.circle(wx + 30, wy - 20, 6, 0xffee88, 0.5);
+        }
+
+        this.add.text(512, 50, '— PRIMER OFFICE —', {
+            fontFamily: 'Arial Black', fontSize: 22, color: '#8866cc'
+        }).setOrigin(0.5);
+
+        for (let i = 0; i < 3; i++) {
+            const dx = 180 + i * 320;
+            this.add.rectangle(dx, 658, 130, 18, 0x0e0820).setStrokeStyle(1, 0x33256b);
+            this.add.rectangle(dx, 644, 60, 12, 0x222244).setStrokeStyle(1, 0x44336b);
+        }
+
         this.add.rectangle(512, 700, 1024, 40, 0x0a0518);
-        this.add.rectangle(512, 680, 1024, 2, 0x553399);
+        this.add.rectangle(512, 680, 1024, 3, 0x7755bb);
 
         const pData = BY_ID[this.playerId];
         const eData = BY_ID[this.opponentId];
@@ -101,6 +123,42 @@ export class Fight extends Scene
         this.add.text(512, 750, 'A/D move • W jump • F punch • G kick • SPACE special', {
             fontFamily: 'Arial', fontSize: 13, color: '#888888'
         }).setOrigin(0.5);
+
+        this.showCountdown();
+    }
+
+    private showCountdown ()
+    {
+        const steps: { label: string; color: string; big: boolean }[] = [
+            { label: '3',      color: '#ffffff', big: false },
+            { label: '2',      color: '#ffffff', big: false },
+            { label: '1',      color: '#ffffff', big: false },
+            { label: 'FIGHT!', color: '#ffff00', big: true },
+        ];
+        let i = 0;
+        const next = () => {
+            if (i >= steps.length) {
+                this.started = true;
+                return;
+            }
+            const step = steps[i];
+            const text = this.add.text(512, 360, step.label, {
+                fontFamily: 'Arial Black', fontSize: step.big ? 140 : 130,
+                color: step.color, stroke: '#000000', strokeThickness: 10
+            }).setOrigin(0.5).setScale(0.3).setAlpha(0).setDepth(100);
+
+            this.tweens.add({
+                targets: text, scale: 1, alpha: 1, duration: 180, ease: 'Back.easeOut',
+                onComplete: () => {
+                    this.tweens.add({
+                        targets: text, alpha: 0, scale: step.big ? 2 : 1.5,
+                        duration: 320, delay: 120,
+                        onComplete: () => { text.destroy(); i++; next(); }
+                    });
+                }
+            });
+        };
+        next();
     }
 
     update (t: number)
@@ -113,6 +171,17 @@ export class Fight extends Scene
         } else {
             this.player.facing = -1;
             this.enemy.facing = 1;
+        }
+
+        this.playerHpBar.width = (this.player.health / 100) * 400;
+        this.enemyHpBar.width = (this.enemy.health / 100) * 400;
+        this.playerMeterBar.width = (this.player.meter / 100) * 300;
+        this.enemyMeterBar.width = (this.enemy.meter / 100) * 300;
+
+        if (!this.started) {
+            this.player.update();
+            this.enemy.update();
+            return;
         }
 
         if (!this.resolved && this.player.isAlive()) {
@@ -143,11 +212,6 @@ export class Fight extends Scene
 
         this.player.update();
         this.enemy.update();
-
-        this.playerHpBar.width = (this.player.health / 100) * 400;
-        this.enemyHpBar.width = (this.enemy.health / 100) * 400;
-        this.playerMeterBar.width = (this.player.meter / 100) * 300;
-        this.enemyMeterBar.width = (this.enemy.meter / 100) * 300;
 
         if (!this.resolved && (!this.player.isAlive() || !this.enemy.isAlive())) {
             this.resolved = true;
