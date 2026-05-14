@@ -27,12 +27,12 @@ export class CharSelect extends Scene
             fontFamily: 'Arial', fontSize: 20, color: '#bbbbbb'
         }).setOrigin(0.5);
 
-        const cols = 7;
-        const tileW = 100, tileH = 115;
-        const gapX = 14, gapY = 10;
+        const cols = 6;
+        const tileW = 110, tileH = 130;
+        const gapX = 16, gapY = 10;
         const gridW = cols * tileW + (cols - 1) * gapX;
         const startX = (1024 - gridW) / 2 + tileW / 2;
-        const startY = 140;
+        const startY = 150;
 
         this.highlight = this.add.rectangle(0, 0, tileW + 10, tileH + 10)
             .setStrokeStyle(4, 0xffff00).setVisible(false);
